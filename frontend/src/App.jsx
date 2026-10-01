@@ -18,7 +18,6 @@ import {
   Droplets,
   Gauge,
   MoonStar,
-  Search,
   SunMedium,
   Thermometer,
   Wifi,
@@ -253,14 +252,11 @@ function App() {
     <div className={`app-shell ${darkMode ? 'dark' : ''}`}>
       <div className="dashboard">
         <aside className="sidebar">
-          <div className="brand-row">
+          <div className="brand-row" aria-label="Branding">
             <div className="brand-icon">
               <Cloud />
             </div>
-            <div className="brand-copy">
-              <h1>ClimateSense</h1>
-              <span>Smart Weather Monitoring System</span>
-            </div>
+            <div className="brand-name">ClimateSense</div>
           </div>
 
           <nav className="nav-list" aria-label="Sidebar navigation">
@@ -281,12 +277,14 @@ function App() {
 
         <main className="main-panel">
           <header className="topbar">
-            <div className="search-box">
-              <Search size={18} />
-              <input type="text" placeholder="Search location..." aria-label="Search weather location" />
-            </div>
+            <div className="topbar-spacer" aria-hidden="true" />
 
             <div className="topbar-actions">
+              <div className="device-status-pill">
+                <span className="status-dot" />
+                ESP32-01 Online
+              </div>
+
               <button
                 type="button"
                 className="theme-toggle"
@@ -294,14 +292,6 @@ function App() {
               >
                 {darkMode ? <SunMedium size={18} /> : <MoonStar size={18} />}
               </button>
-
-              <div className="user-pill">
-                <div className="user-avatar">AP</div>
-                <div className="user-meta">
-                  <strong>Arpita Patil</strong>
-                  <span>Weather Enthusiast</span>
-                </div>
-              </div>
             </div>
           </header>
 

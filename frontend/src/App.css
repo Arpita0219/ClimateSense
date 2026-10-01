@@ -70,6 +70,20 @@ button {
   color: #2582ba;
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px 14px;
+}
+
+.brand-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+}
+
 .brand-copy {
   min-width: 0;
 }
@@ -165,31 +179,43 @@ button {
   margin-bottom: 24px;
 }
 
-.search-box {
+.topbar-brand {
   flex: 1;
   min-width: 220px;
-  height: 52px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px;
+  padding: 12px 16px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(122, 154, 170, 0.18);
-  color: #68818e;
 }
 
-.search-box input {
-  border: none;
-  width: 100%;
-  background: transparent;
-  color: #233d49;
-  font-size: 1rem;
-  outline: none;
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #dff7ff, #d5ebff);
+  font-size: 1.4rem;
 }
 
-.search-box input::placeholder {
-  color: #718b9b;
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-copy strong {
+  font-size: 1.3rem;
+  color: #1d3f4f;
+  letter-spacing: -0.02em;
+}
+
+.brand-copy span {
+  font-size: 0.78rem;
+  color: #5a7481;
 }
 
 .topbar-actions {
@@ -207,6 +233,19 @@ button {
   color: #3d5865;
   display: grid;
   place-items: center;
+}
+
+.device-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(122, 154, 170, 0.18);
+  color: #1a4d3e;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .user-pill {
