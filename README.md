@@ -1,57 +1,121 @@
 # ClimateSense
 
-ClimateSense is a full-stack IoT environmental monitoring project built for a smart campus or field deployment. It combines an ESP32-powered sensor setup with a Node.js backend and a React dashboard to track temperature, humidity, air quality, pressure, light, soil moisture, wind speed, and related environment metrics in real time.
+ClimateSense is an IoT-based smart weather monitoring system that collects live environmental data from an ESP32 connected to a DHT11 sensor and displays it through a modern dashboard. The project is designed for real-time monitoring of temperature, humidity, and related atmospheric conditions in a campus, lab, or field environment.
+
+The system connects three main layers:
 
 ```text
-ESP32 / DHT11 sensors -> Express API -> MongoDB or demo storage -> React dashboard
-                                  \-> Socket.IO live updates
+DHT11 Sensor -> ESP32 -> Backend API -> MongoDB / Demo Storage -> React Dashboard
+                                    \-> Socket.IO live updates
 ```
 
-The dashboard includes Overview, Live Data, Forecast, Charts, Map, and Devices views, and it supports live updates, historical analysis, CSV export, and a responsive monitoring interface. The forecast and map content are illustrative UI placeholders unless a real data source is added.
+This project demonstrates how sensor data can be acquired from hardware, validated by a secure backend, stored persistently, and presented in an interactive UI for analysis and monitoring.
 
-## Project layout
+## Why this project exists
+
+Many environmental monitoring systems still depend on manual checking or disconnected spreadsheets. ClimateSense solves that by creating an automated, connected solution where sensor readings are captured continuously and made visible in real time through a web dashboard.
+
+The project is useful for:
+- indoor or outdoor environmental monitoring
+- smart campus or lab tracking
+- field monitoring in rural or agricultural areas
+- learning IoT, backend, and frontend integration
+- showcasing end-to-end embedded system development
+
+## Project overview
+
+ClimateSense includes:
+- ESP32-based sensor reading from DHT11
+- secure HTTP POST requests to a backend
+- Express.js API for weather data handling
+- MongoDB persistence when configured
+- demo-mode fallback for local testing
+- Socket.IO live updates to the frontend
+- React dashboard for overview, history, charts, and device monitoring
+
+## System architecture
 
 ```text
-backend/
-  server.js        Express API, Socket.IO server, MongoDB integration
-  package.json
-  README.md
-frontend/
-  src/             React dashboard and UI logic
-  public/
-  package.json
-  vite.config.js
-README.md
++------------------+      +---------------------+      +--------------------+
+| DHT11 Sensor     | ---> | ESP32 Controller    | ---> | Express Backend    |
+| Temperature      |      | Wi-Fi + HTTP client |      | Node.js + MongoDB  |
+| Humidity         |      | Sends sensor data   |      | Socket.IO          |
++------------------+      +---------------------+      +--------------------+
+                                                            |
+                                                            v
+                                                  +--------------------+
+                                                  | React Frontend     |
+                                                  | Charts + Dashboard |
+                                                  +--------------------+
 ```
+
+The backend acts as the central service that receives readings, validates them, optionally stores them, and pushes the latest data to the frontend in real time.
 
 ## Features
 
-- Real-time dashboard updates using Socket.IO
-- REST API for latest, historical, and summary readings
-- MongoDB persistence with automatic in-memory fallback for demo mode
-- CSV export for recent readings
-- Responsive interface for campus/environment monitoring
-- ESP32 and DHT11-compatible sensor flow for local IoT deployments
+- Live temperature and humidity monitoring
+- ESP32 sensor integration with DHT11
+- Secure API key validation for unauthorized submissions
+- MongoDB storage with fallback demo mode
+- Historical data retrieval by range
+- Summary statistics for min, max, and average values
+- Socket.IO real-time updates
+- CSV export support in the dashboard
+- Responsive UI for monitoring on desktop or smaller screens
+- Device-connected status and sensor health presentation
 
 ## Tech stack
 
-- Frontend: React, Vite, Recharts, Tailwind CSS, Lucide icons, Socket.IO client
-- Backend: Node.js, Express, Mongoose, Socket.IO, CORS, dotenv
-- Database: MongoDB Atlas or local MongoDB instance
-- Hardware: ESP32 + DHT11 (or similar temperature/humidity sensors)
+### Frontend
+- React
+- Vite
+- Recharts
+- Tailwind CSS
+- Lucide icons
+- Socket.IO client
+
+### Backend
+- Node.js
+- Express.js
+- Mongoose
+- MongoDB
+- Socket.IO
+- dotenv
+- CORS
+
+### Hardware
+- ESP32 development board
+- DHT11 temperature and humidity sensor
+
+## Folder structure
+
+```text
+backend/
+  server.js               Express server, API routes, Socket.IO, MongoDB logic
+  package.json            Backend dependencies and scripts
+  README.md               Backend-specific documentation
+frontend/
+  src/                    React dashboard source files
+  public/                 Static assets
+  package.json            Frontend dependencies and scripts
+  vite.config.js         Vite configuration
+README.md                 Project overview and setup guide
+```
 
 ## Requirements
 
-- Node.js 18+ recommended; 20+ is preferred for the current frontend toolchain
-- npm
-- MongoDB URI for persistent storage, or leave it unset to use demo mode
-- Arduino IDE with ESP32 support and the DHT sensor library for hardware uploads
+Before running the project, make sure you have:
+- Node.js 18+ or newer
+- npm installed
+- MongoDB Atlas account or local MongoDB server (optional for demo mode)
+- Arduino IDE with ESP32 board support
+- DHT sensor library installed for the Arduino sketch
 
 ## Local setup
 
 Open two terminals in the repository root.
 
-### 1) Start the backend
+### 1. Start the backend
 
 ```bash
 cd backend
@@ -59,7 +123,7 @@ npm install
 npm run dev
 ```
 
-### 2) Start the frontend
+### 2. Start the frontend
 
 ```bash
 cd frontend
@@ -67,13 +131,17 @@ npm install
 npm run dev
 ```
 
-Then open the local Vite URL shown in the frontend terminal, usually `http://localhost:5173`.
+Then open the URL shown in the frontend terminal, usually:
+
+```text
+http://localhost:5173
+```
 
 ## Environment variables
 
 ### Backend
 
-Create `backend/.env`:
+Create a file named `.env` inside `backend/`:
 
 ```dotenv
 PORT=5000
@@ -88,32 +156,36 @@ MONGODB_URI=mongodb://127.0.0.1:27017/climatesense
 ```
 
 Notes:
-- If `MONGODB_URI` is not set, the app runs in demo mode and uses in-memory readings.
-- If `API_KEY` is not set, the default development key is `climatesense-demo-key`.
-- For production or real hardware, set a strong API key before deployment.
+- If `MONGODB_URI` is missing, the app runs in demo mode with in-memory readings.
+- If `API_KEY` is missing, the default development key is `climatesense-demo-key`.
+- For real hardware or deployment, set a strong API key.
 
 ### Frontend
 
-Create `frontend/.env` when the backend is hosted elsewhere:
+Create a `.env` file inside `frontend/` when your backend is hosted elsewhere:
 
 ```dotenv
 VITE_API_URL=https://your-backend.example.com
 VITE_SOCKET_URL=https://your-backend.example.com
 ```
 
-If these are omitted, the frontend uses `http://localhost:5000` by default.
+If these are not set, the frontend uses:
+
+```text
+http://localhost:5000
+```
 
 ## API endpoints
 
-The backend listens on `http://localhost:5000` by default.
+The API is hosted by the backend on `http://localhost:5000` by default.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/api/health` | API health and database/demo-mode status |
-| `GET` | `/api/weather/latest` | Most recent sensor reading |
-| `GET` | `/api/weather/history?range=1h\|24h\|7d` | Historical readings in chronological order |
-| `GET` | `/api/weather/stats?range=1h\|24h\|7d` | Min/max/average temperature and humidity |
-| `POST` | `/api/weather` | Store a new reading; requires `x-api-key` |
+| `GET` | `/api/health` | Checks if the backend is running and whether MongoDB is connected |
+| `GET` | `/api/weather/latest` | Returns the most recent sensor reading |
+| `GET` | `/api/weather/history?range=1h\|24h\|7d` | Returns readings inside a selected time range |
+| `GET` | `/api/weather/stats?range=1h\|24h\|7d` | Returns min, max, and average temperature and humidity |
+| `POST` | `/api/weather` | Saves a sensor reading; requires `x-api-key` |
 
 Example request:
 
@@ -123,8 +195,6 @@ curl -X POST http://localhost:5000/api/weather \
   -H 'x-api-key: replace-with-a-long-random-value' \
   -d '{"deviceId":"esp32-belgaum-01","temperature":28.4,"humidity":61}'
 ```
-
-`deviceId` is optional and defaults to `esp32-demo`. `pressure` and `windSpeed` are optional numeric values. A successful POST returns HTTP `201` and emits a Socket.IO `newReading` event that the dashboard listens for.
 
 ## ESP32 + DHT11 example
 
@@ -203,32 +273,20 @@ void loop() {
 }
 ```
 
-> Use the LAN IP of the machine running the backend instead of `localhost` when posting from the ESP32. The device must be able to reach the server over the same network.
+> Use the LAN IP of the machine running the backend instead of `localhost` when sending data from the ESP32.
 
 ## Why the API key is important
 
-The API key is used to protect the sensor data submission endpoint between the ESP32 and the backend.
+The API key protects the data submission endpoint so that only the ESP32 can send readings to the backend.
 
-Without the API key, anyone who knows your backend URL could send fake readings:
-
-```json
-{
-  "temperature": 100,
-  "humidity": 5,
-  "deviceId": "fake-device"
-}
-```
-
-That would allow unauthorized data to be submitted to the backend and potentially stored in MongoDB.
-
-With the API key enabled, the ESP32 sends the secret together with the sensor data:
+Without the API key, anyone who discovers the backend URL could send fake sensor data and pollute the database.
 
 ```http
 POST /api/weather
 x-api-key: my-secret-key
 ```
 
-The backend verifies it before saving any reading:
+The backend checks the header before saving data:
 
 ```js
 if (req.headers['x-api-key'] !== process.env.API_KEY) {
@@ -236,9 +294,7 @@ if (req.headers['x-api-key'] !== process.env.API_KEY) {
 }
 ```
 
-So in this project, the API key is mainly an authentication layer for the ESP32-to-backend communication. It does not measure temperature, connect to Wi-Fi, or connect to MongoDB by itself; it simply ensures only authorized devices can send sensor data.
-
-> In one sentence: “The API key authenticates the ESP32 device when sending sensor readings to the backend and prevents unauthorized devices from submitting data.”
+This is a security measure for the ESP32-to-backend communication and helps prevent unauthorized or fake sensor submissions.
 
 ## Deployment notes
 
@@ -247,7 +303,7 @@ So in this project, the API key is mainly an authentication layer for the ESP32-
 - Set the service root to `backend/`
 - Build command: `npm install`
 - Start command: `npm start`
-- Configure `MONGODB_URI` and `API_KEY` in environment variables
+- Add `MONGODB_URI` and `API_KEY` in Render environment settings
 - Health check path: `/api/health`
 
 ### Vercel frontend
@@ -255,7 +311,7 @@ So in this project, the API key is mainly an authentication layer for the ESP32-
 - Set the project root to `frontend/`
 - Build command: `npm run build`
 - Output directory: `dist`
-- Add `VITE_API_URL` and `VITE_SOCKET_URL` to point to the deployed backend
+- Add `VITE_API_URL` and `VITE_SOCKET_URL` pointing to the hosted backend
 
 ## Validation
 
@@ -270,4 +326,8 @@ cd backend
 node --check server.js
 ```
 
-This project is designed to be easy to run locally and to scale into a public-facing IoT monitoring dashboard with real sensor data or a hosted backend.
+## Summary
+
+ClimateSense is a practical IoT project that combines embedded hardware, backend APIs, and a real-time web dashboard into a complete environmental monitoring solution. It demonstrates how a small sensor node can collect data, send it securely to a server, store it, and visualize it for decision-making in near real time.
+
+This project is suitable for learning, demonstration, and extension to larger smart environment monitoring systems.
