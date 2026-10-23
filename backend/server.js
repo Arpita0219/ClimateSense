@@ -1,3 +1,4 @@
+
 import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
@@ -7,6 +8,7 @@ import 'dotenv/config'
 
 const app = express()
 const server = http.createServer(app)
+
 const io = new Server(server, {
   cors: {
     origin: '*',
@@ -17,11 +19,16 @@ const io = new Server(server, {
 const PORT = Number(process.env.PORT || 5000)
 const API_KEY = process.env.API_KEY || 'climatesense-demo-key'
 const MONGODB_URI = process.env.MONGODB_URI || ''
+
 const fallbackReadings = buildSeedReadings()
 
 const readingSchema = new mongoose.Schema(
   {
-    deviceId: { type: String, required: true, default: 'esp32-demo' },
+    deviceId: {
+      type: String,
+      required: true,
+      default: 'esp32-demo',
+    },
     temperature: { type: Number, required: true },
     humidity: { type: Number, required: true },
     pressure: { type: Number, default: 1010 },
@@ -31,16 +38,24 @@ const readingSchema = new mongoose.Schema(
   { versionKey: false },
 )
 
-const Reading = mongoose.models.Reading || mongoose.model('Reading', readingSchema)
+const Reading =
+  mongoose.models.Reading ||
+  mongoose.model('Reading', readingSchema)
 
 function buildSeedReadings() {
   const readings = []
   const now = Date.now()
 
   for (let index = 0; index < 24; index += 1) {
-    const time = new Date(now - (23 - index) * 60 * 60 * 1000)
-    const temperature = 24 + Math.sin(index / 3) * 4 + (index % 5) * 0.6
-    const humidity = 56 + Math.cos(index / 4) * 12 + (index % 4) * 2
+    const time = new Date(
+      now - (23 - index) * 60 * 60 * 1000,
+    )
+
+    const temperature =
+      24 + Math.sin(index / 3) * 4 + (index % 5) * 0.6
+
+    const humidity =
+      56 + Math.cos(index / 4) * 12 + (index % 4) * 2
 
     readings.push({
       deviceId: 'esp32-demo',
@@ -64,16 +79,22 @@ function normalizeReading(rawReading = {}) {
   const humidity = Number(rawReading.humidity)
 
   if (!Number.isFinite(temperature) || !Number.isFinite(humidity)) {
-    throw new Error('temperature and humidity must be numeric values')
+    throw new Error(
+      'temperature and humidity must be numeric values',
+    )
   }
 
   return {
-    deviceId: String(rawReading.deviceId || 'esp32-demo').trim() || 'esp32-demo',
+    deviceId:
+      String(rawReading.deviceId || 'esp32-demo').trim() ||
+      'esp32-demo',
     temperature: Number(temperature.toFixed(1)),
     humidity: Number(humidity.toFixed(0)),
     pressure: Number(rawReading.pressure ?? 1010),
     windSpeed: Number(rawReading.windSpeed ?? 0),
-    createdAt: rawReading.createdAt ? new Date(rawReading.createdAt).toISOString() : new Date().toISOString(),
+    createdAt: rawReading.createdAt
+      ? new Date(rawReading.createdAt).toISOString()
+      : new Date().toISOString(),
   }
 }
 
@@ -86,8 +107,12 @@ async function persistReading(readingPayload) {
   }
 
   fallbackReadings.push(reading)
+
   if (fallbackReadings.length > 720) {
-    fallbackReadings.splice(0, fallbackReadings.length - 720)
+    fallbackReadings.splice(
+      0,
+      fallbackReadings.length - 720,
+    )
   }
 
   return reading
@@ -105,9 +130,16 @@ function getRangeInMs(range = '24h') {
 
 function getRangeReadings(range = '24h', source = fallbackReadings) {
   const cutoffTime = Date.now() - getRangeInMs(range)
+
   return [...source]
-    .filter((entry) => new Date(entry.createdAt).getTime() >= cutoffTime)
-    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .filter(
+      (entry) =>
+        new Date(entry.createdAt).getTime() >= cutoffTime,
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt) - new Date(b.createdAt),
+    )
 }
 
 function computeStats(readings) {
@@ -122,16 +154,25 @@ function computeStats(readings) {
     }
   }
 
-  const temperatures = readings.map((entry) => Number(entry.temperature || 0))
-  const humidities = readings.map((entry) => Number(entry.humidity || 0))
+  const temperatures = readings.map((entry) =>
+    Number(entry.temperature || 0),
+  )
+
+  const humidities = readings.map((entry) =>
+    Number(entry.humidity || 0),
+  )
 
   return {
     minTemp: Math.min(...temperatures),
     maxTemp: Math.max(...temperatures),
-    avgTemp: temperatures.reduce((sum, value) => sum + value, 0) / temperatures.length,
+    avgTemp:
+      temperatures.reduce((sum, value) => sum + value, 0) /
+      temperatures.length,
     minHumidity: Math.min(...humidities),
     maxHumidity: Math.max(...humidities),
-    avgHumidity: humidities.reduce((sum, value) => sum + value, 0) / humidities.length,
+    avgHumidity:
+      humidities.reduce((sum, value) => sum + value, 0) /
+      humidities.length,
   }
 }
 
@@ -140,19 +181,31 @@ app.use(express.json({ limit: '1mb' }))
 
 if (MONGODB_URI) {
   mongoose
-    .connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
+    .connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+    })
     .then(() => console.log('MongoDB connected'))
-    .catch((error) => console.error(`MongoDB connection failed: ${error.message}`))
+    .catch((error) =>
+      console.error(
+        `MongoDB connection failed: ${error.message}`,
+      ),
+    )
 } else {
-  console.warn('MONGODB_URI is not set; using in-memory fallback storage for demo mode')
+  console.warn(
+    'MONGODB_URI is not set; using in-memory fallback storage for demo mode',
+  )
 }
 
+// Protect incoming ESP32 readings with an API key.
 app.use((req, res, next) => {
   if (req.method === 'POST' && req.path === '/api/weather') {
-    const incomingKey = req.header('x-api-key') || req.query.api_key
+    const incomingKey =
+      req.header('x-api-key') || req.query.api_key
 
     if (!incomingKey || incomingKey !== API_KEY) {
-      return res.status(401).json({ message: 'Invalid or missing x-api-key header' })
+      return res.status(401).json({
+        message: 'Invalid or missing x-api-key header',
+      })
     }
   }
 
@@ -170,14 +223,23 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/weather/latest', async (_req, res) => {
   try {
     if (isDatabaseReady()) {
-      const latest = await Reading.findOne().sort({ createdAt: -1 }).lean()
-      return res.json({ reading: latest || fallbackReadings.at(-1) })
+      const latest = await Reading.findOne()
+        .sort({ createdAt: -1 })
+        .lean()
+
+      return res.json({
+        reading: latest || fallbackReadings.at(-1),
+      })
     }
 
-    const latestEntry = fallbackReadings.at(-1)
-    return res.json({ reading: latestEntry || null })
+    return res.json({
+      reading: fallbackReadings.at(-1) || null,
+    })
   } catch (error) {
-    return res.status(500).json({ message: 'Could not load latest reading', error: error.message })
+    return res.status(500).json({
+      message: 'Could not load latest reading',
+      error: error.message,
+    })
   }
 })
 
@@ -186,14 +248,27 @@ app.get('/api/weather/history', async (req, res) => {
 
   try {
     if (isDatabaseReady()) {
-      const cutoff = new Date(Date.now() - getRangeInMs(range))
-      const documents = await Reading.find({ createdAt: { $gte: cutoff } }).sort({ createdAt: 1 }).lean()
+      const cutoff = new Date(
+        Date.now() - getRangeInMs(range),
+      )
+
+      const documents = await Reading.find({
+        createdAt: { $gte: cutoff },
+      })
+        .sort({ createdAt: 1 })
+        .lean()
+
       return res.json({ readings: documents })
     }
 
-    return res.json({ readings: getRangeReadings(range, fallbackReadings) })
+    return res.json({
+      readings: getRangeReadings(range, fallbackReadings),
+    })
   } catch (error) {
-    return res.status(500).json({ message: 'Could not load history data', error: error.message })
+    return res.status(500).json({
+      message: 'Could not load history data',
+      error: error.message,
+    })
   }
 })
 
@@ -204,23 +279,41 @@ app.get('/api/weather/stats', async (req, res) => {
     let readings = []
 
     if (isDatabaseReady()) {
-      const cutoff = new Date(Date.now() - getRangeInMs(range))
-      readings = await Reading.find({ createdAt: { $gte: cutoff } }).lean()
+      const cutoff = new Date(
+        Date.now() - getRangeInMs(range),
+      )
+
+      readings = await Reading.find({
+        createdAt: { $gte: cutoff },
+      }).lean()
     } else {
       readings = getRangeReadings(range, fallbackReadings)
     }
 
-    return res.json({ stats: computeStats(readings) })
+    return res.json({
+      stats: computeStats(readings),
+    })
   } catch (error) {
-    return res.status(500).json({ message: 'Could not load stats', error: error.message })
+    return res.status(500).json({
+      message: 'Could not load stats data',
+      error: error.message,
+    })
   }
 })
 
 app.post('/api/weather', async (req, res) => {
-  const { temperature, humidity, deviceId, pressure, windSpeed } = req.body || {}
+  const {
+    temperature,
+    humidity,
+    deviceId,
+    pressure,
+    windSpeed,
+  } = req.body || {}
 
   if (temperature === undefined || humidity === undefined) {
-    return res.status(400).json({ message: 'temperature and humidity are required' })
+    return res.status(400).json({
+      message: 'temperature and humidity are required',
+    })
   }
 
   try {
@@ -239,19 +332,25 @@ app.post('/api/weather', async (req, res) => {
       reading: savedReading,
     })
   } catch (error) {
-    return res.status(400).json({ message: error.message })
+    return res.status(400).json({
+      message: error.message,
+    })
   }
 })
 
 io.on('connection', (socket) => {
-  socket.emit('serverStatus', { status: 'connected' })
+  socket.emit('serverStatus', {
+    status: 'connected',
+  })
+
   socket.on('disconnect', () => {
     console.log('Client disconnected from socket')
   })
 })
 
-server.listen(PORT, () => {
-  console.log(`ClimateSense backend running on http://localhost:${PORT}`)
+// Listen on all network interfaces so the ESP32 can connect.
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`ClimateSense backend running on port ${PORT}`)
 })
 
 export { app }
