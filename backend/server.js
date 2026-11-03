@@ -1,4 +1,3 @@
-
 import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
@@ -20,7 +19,19 @@ const PORT = Number(process.env.PORT || 5000)
 const API_KEY = process.env.API_KEY || 'climatesense-demo-key'
 const MONGODB_URI = process.env.MONGODB_URI || ''
 
-const fallbackReadings = buildSeedReadings()
+// A device counts as "online" if it sent data within this window.
+// The ESP32 sends every 10 s, so 45 s tolerates a few missed posts.
+const ONLINE_WINDOW_MS = Number(process.env.ONLINE_WINDOW_MS || 45000)
+
+// Fake sample data is OFF by default. Set SEED_DEMO_DATA=true in .env
+// only if you want a demo chart without hardware.
+const SEED_DEMO_DATA = process.env.SEED_DEMO_DATA === 'true'
+
+const fallbackReadings = SEED_DEMO_DATA ? buildSeedReadings() : []
+
+// deviceId -> { lastSeenAt (ms), lastReading }
+// Only filled by REAL POSTs from a device, never by seed data.
+const deviceRegistry = new Map()
 
 const readingSchema = new mongoose.Schema(
   {
@@ -39,28 +50,21 @@ const readingSchema = new mongoose.Schema(
 )
 
 const Reading =
-  mongoose.models.Reading ||
-  mongoose.model('Reading', readingSchema)
+  mongoose.models.Reading || mongoose.model('Reading', readingSchema)
 
 function buildSeedReadings() {
   const readings = []
   const now = Date.now()
 
   for (let index = 0; index < 24; index += 1) {
-    const time = new Date(
-      now - (23 - index) * 60 * 60 * 1000,
-    )
-
-    const temperature =
-      24 + Math.sin(index / 3) * 4 + (index % 5) * 0.6
-
-    const humidity =
-      56 + Math.cos(index / 4) * 12 + (index % 4) * 2
+    const time = new Date(now - (23 - index) * 60 * 60 * 1000)
+    const temperature = 24 + Math.sin(index / 3) * 4 + (index % 5) * 0.6
+    const humidity = 56 + Math.cos(index / 4) * 12 + (index % 4) * 2
 
     readings.push({
       deviceId: 'esp32-demo',
       temperature: Number(temperature.toFixed(1)),
-      humidity: Number(humidity.toFixed(0)),
+      humidity: Number(humidity.toFixed(1)),
       pressure: 1008 + (index % 4),
       windSpeed: 8 + (index % 6),
       createdAt: time.toISOString(),
@@ -79,17 +83,14 @@ function normalizeReading(rawReading = {}) {
   const humidity = Number(rawReading.humidity)
 
   if (!Number.isFinite(temperature) || !Number.isFinite(humidity)) {
-    throw new Error(
-      'temperature and humidity must be numeric values',
-    )
+    throw new Error('temperature and humidity must be numeric values')
   }
 
   return {
     deviceId:
-      String(rawReading.deviceId || 'esp32-demo').trim() ||
-      'esp32-demo',
+      String(rawReading.deviceId || 'esp32-demo').trim() || 'esp32-demo',
     temperature: Number(temperature.toFixed(1)),
-    humidity: Number(humidity.toFixed(0)),
+    humidity: Number(humidity.toFixed(1)),
     pressure: Number(rawReading.pressure ?? 1010),
     windSpeed: Number(rawReading.windSpeed ?? 0),
     createdAt: rawReading.createdAt
@@ -109,10 +110,7 @@ async function persistReading(readingPayload) {
   fallbackReadings.push(reading)
 
   if (fallbackReadings.length > 720) {
-    fallbackReadings.splice(
-      0,
-      fallbackReadings.length - 720,
-    )
+    fallbackReadings.splice(0, fallbackReadings.length - 720)
   }
 
   return reading
@@ -132,14 +130,8 @@ function getRangeReadings(range = '24h', source = fallbackReadings) {
   const cutoffTime = Date.now() - getRangeInMs(range)
 
   return [...source]
-    .filter(
-      (entry) =>
-        new Date(entry.createdAt).getTime() >= cutoffTime,
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.createdAt) - new Date(b.createdAt),
-    )
+    .filter((entry) => new Date(entry.createdAt).getTime() >= cutoffTime)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
 }
 
 function computeStats(readings) {
@@ -154,26 +146,39 @@ function computeStats(readings) {
     }
   }
 
-  const temperatures = readings.map((entry) =>
-    Number(entry.temperature || 0),
-  )
-
-  const humidities = readings.map((entry) =>
-    Number(entry.humidity || 0),
-  )
+  const temperatures = readings.map((entry) => Number(entry.temperature || 0))
+  const humidities = readings.map((entry) => Number(entry.humidity || 0))
 
   return {
     minTemp: Math.min(...temperatures),
     maxTemp: Math.max(...temperatures),
-    avgTemp:
-      temperatures.reduce((sum, value) => sum + value, 0) /
-      temperatures.length,
+    avgTemp: temperatures.reduce((sum, v) => sum + v, 0) / temperatures.length,
     minHumidity: Math.min(...humidities),
     maxHumidity: Math.max(...humidities),
-    avgHumidity:
-      humidities.reduce((sum, value) => sum + value, 0) /
-      humidities.length,
+    avgHumidity: humidities.reduce((sum, v) => sum + v, 0) / humidities.length,
   }
+}
+
+function describeDevices() {
+  const now = Date.now()
+
+  return [...deviceRegistry.entries()].map(([deviceId, info]) => {
+    const ageMs = now - info.lastSeenAt
+    return {
+      deviceId,
+      online: ageMs <= ONLINE_WINDOW_MS,
+      lastSeenAt: new Date(info.lastSeenAt).toISOString(),
+      ageSeconds: Math.round(ageMs / 1000),
+      lastReading: info.lastReading,
+    }
+  })
+}
+
+function latestDeviceStatus() {
+  const devices = describeDevices().sort(
+    (a, b) => a.ageSeconds - b.ageSeconds,
+  )
+  return devices[0] || null
 }
 
 app.use(cors())
@@ -181,14 +186,10 @@ app.use(express.json({ limit: '1mb' }))
 
 if (MONGODB_URI) {
   mongoose
-    .connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-    })
+    .connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
     .then(() => console.log('MongoDB connected'))
     .catch((error) =>
-      console.error(
-        `MongoDB connection failed: ${error.message}`,
-      ),
+      console.error(`MongoDB connection failed: ${error.message}`),
     )
 } else {
   console.warn(
@@ -196,13 +197,17 @@ if (MONGODB_URI) {
   )
 }
 
+if (SEED_DEMO_DATA) {
+  console.warn('SEED_DEMO_DATA=true: fake sample readings are loaded')
+}
+
 // Protect incoming ESP32 readings with an API key.
 app.use((req, res, next) => {
   if (req.method === 'POST' && req.path === '/api/weather') {
-    const incomingKey =
-      req.header('x-api-key') || req.query.api_key
+    const incomingKey = req.header('x-api-key') || req.query.api_key
 
     if (!incomingKey || incomingKey !== API_KEY) {
+      console.warn(`Rejected POST from ${req.ip}: bad or missing API key`)
       return res.status(401).json({
         message: 'Invalid or missing x-api-key header',
       })
@@ -213,27 +218,41 @@ app.use((req, res, next) => {
 })
 
 app.get('/api/health', (_req, res) => {
+  const device = latestDeviceStatus()
+
   res.json({
     status: 'ok',
     database: isDatabaseReady() ? 'connected' : 'demo-mode',
     message: 'ClimateSense backend is running',
+    deviceOnline: device ? device.online : false,
+    lastReadingAt: device ? device.lastSeenAt : null,
+  })
+})
+
+// Real device status: online only if a device posted recently.
+app.get('/api/devices', (_req, res) => {
+  res.json({
+    onlineWindowSeconds: ONLINE_WINDOW_MS / 1000,
+    devices: describeDevices(),
   })
 })
 
 app.get('/api/weather/latest', async (_req, res) => {
   try {
-    if (isDatabaseReady()) {
-      const latest = await Reading.findOne()
-        .sort({ createdAt: -1 })
-        .lean()
+    const device = latestDeviceStatus()
+    let reading = null
 
-      return res.json({
-        reading: latest || fallbackReadings.at(-1),
-      })
+    if (isDatabaseReady()) {
+      reading = await Reading.findOne().sort({ createdAt: -1 }).lean()
+    } else {
+      reading = fallbackReadings.at(-1) || null
     }
 
     return res.json({
-      reading: fallbackReadings.at(-1) || null,
+      reading,
+      online: device ? device.online : false,
+      lastSeenAt: device ? device.lastSeenAt : null,
+      ageSeconds: device ? device.ageSeconds : null,
     })
   } catch (error) {
     return res.status(500).json({
@@ -248,13 +267,9 @@ app.get('/api/weather/history', async (req, res) => {
 
   try {
     if (isDatabaseReady()) {
-      const cutoff = new Date(
-        Date.now() - getRangeInMs(range),
-      )
+      const cutoff = new Date(Date.now() - getRangeInMs(range))
 
-      const documents = await Reading.find({
-        createdAt: { $gte: cutoff },
-      })
+      const documents = await Reading.find({ createdAt: { $gte: cutoff } })
         .sort({ createdAt: 1 })
         .lean()
 
@@ -279,20 +294,13 @@ app.get('/api/weather/stats', async (req, res) => {
     let readings = []
 
     if (isDatabaseReady()) {
-      const cutoff = new Date(
-        Date.now() - getRangeInMs(range),
-      )
-
-      readings = await Reading.find({
-        createdAt: { $gte: cutoff },
-      }).lean()
+      const cutoff = new Date(Date.now() - getRangeInMs(range))
+      readings = await Reading.find({ createdAt: { $gte: cutoff } }).lean()
     } else {
       readings = getRangeReadings(range, fallbackReadings)
     }
 
-    return res.json({
-      stats: computeStats(readings),
-    })
+    return res.json({ stats: computeStats(readings) })
   } catch (error) {
     return res.status(500).json({
       message: 'Could not load stats data',
@@ -302,13 +310,8 @@ app.get('/api/weather/stats', async (req, res) => {
 })
 
 app.post('/api/weather', async (req, res) => {
-  const {
-    temperature,
-    humidity,
-    deviceId,
-    pressure,
-    windSpeed,
-  } = req.body || {}
+  const { temperature, humidity, deviceId, pressure, windSpeed } =
+    req.body || {}
 
   if (temperature === undefined || humidity === undefined) {
     return res.status(400).json({
@@ -325,28 +328,42 @@ app.post('/api/weather', async (req, res) => {
       windSpeed,
     })
 
+    deviceRegistry.set(savedReading.deviceId, {
+      lastSeenAt: Date.now(),
+      lastReading: savedReading,
+    })
+
+    console.log(
+      `ESP32 DATA RECEIVED from ${savedReading.deviceId}: ` +
+        `${savedReading.temperature} C, ${savedReading.humidity} %`,
+    )
+
     io.emit('newReading', savedReading)
+    io.emit('deviceStatus', describeDevices())
 
     return res.status(201).json({
       message: 'Weather reading saved successfully',
       reading: savedReading,
     })
   } catch (error) {
-    return res.status(400).json({
-      message: error.message,
-    })
+    return res.status(400).json({ message: error.message })
   }
 })
 
 io.on('connection', (socket) => {
-  socket.emit('serverStatus', {
-    status: 'connected',
-  })
+  socket.emit('serverStatus', { status: 'connected' })
+  socket.emit('deviceStatus', describeDevices())
 
   socket.on('disconnect', () => {
     console.log('Client disconnected from socket')
   })
 })
+
+// Push device status every 10 s so the dashboard flips to "offline"
+// on its own when the ESP32 stops sending.
+setInterval(() => {
+  io.emit('deviceStatus', describeDevices())
+}, 10000)
 
 // Listen on all network interfaces so the ESP32 can connect.
 server.listen(PORT, '0.0.0.0', () => {
