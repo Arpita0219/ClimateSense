@@ -825,7 +825,7 @@ function App() {
                     <div className="card-title-row"><h3>Registered devices</h3><span className="status-badge online">1 device</span></div>
                     <article className="device-record">
                       <div className="device-record-icon"><Wifi size={20} /></div>
-                      <div className="device-record-copy"><strong>{latest?.deviceId || 'esp32-01'}</strong><span>ESP32 weather station · DHT11 sensor</span><small>Last received {latest?.createdAt ? formatSecondsAgo(latest.createdAt) : 'never'}</small></div>
+                      <div className="device-record-copy"><strong>{latest?.deviceId || 'esp32-01'}</strong><span>ESP32 weather station · DHT22 sensor</span><small>Last received {latest?.createdAt ? formatSecondsAgo(latest.createdAt) : 'never'}</small></div>
                       <span className={`status-badge ${isOnline ? 'online' : 'offline'}`}>{isOnline ? 'Online' : 'Offline'}</span>
                     </article>
                     <div className="device-detail-grid">
@@ -852,5 +852,8 @@ function App() {
     </div>
   )
 }
+
+
+
 
 export default App
