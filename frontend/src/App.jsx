@@ -377,15 +377,6 @@ function App() {
                   <small>{latestHumidity >= 70 ? 'Humid' : latestHumidity <= 35 ? 'Dry' : 'Balanced'}</small>
                 </div>
 
-                <div className={`metric-box ${temperatureTone}`}>
-                  <div className="metric-head">
-                    <span className="metric-icon"><Wind size={18} /></span>
-                    <span>Wind</span>
-                  </div>
-                  <strong>12 km/h</strong>
-                  <small>Light breeze</small>
-                </div>
-
                 <div className={`metric-box ${humidityTone}`}>
                   <div className="metric-head">
                     <span className="metric-icon"><Gauge size={18} /></span>
@@ -533,11 +524,6 @@ function App() {
                   <span className="sensor-icon"><Gauge size={16} /></span>
                   <span>Pressure</span>
                   <strong>1010 hPa</strong>
-                </div>
-                <div className="sensor-row">
-                  <span className="sensor-icon"><Wind size={16} /></span>
-                  <span>Wind</span>
-                  <strong>12 km/h</strong>
                 </div>
               </div>
             </div>
@@ -698,16 +684,6 @@ function App() {
                         <div className="metric-head"><span className="metric-icon"><Droplets size={18} /></span><span>Humidity</span></div>
                         <strong>{latestHumidity.toFixed(0)}%</strong>
                         <small>Relative humidity</small>
-                      </div>
-                      <div className="metric-box comfortable">
-                        <div className="metric-head"><span className="metric-icon"><Gauge size={18} /></span><span>Pressure</span></div>
-                        <strong>{safeNumber(latest?.pressure, 1010).toFixed(0)} hPa</strong>
-                        <small>Atmospheric pressure</small>
-                      </div>
-                      <div className="metric-box cold">
-                        <div className="metric-head"><span className="metric-icon"><Wind size={18} /></span><span>Wind speed</span></div>
-                        <strong>{safeNumber(latest?.windSpeed, 0).toFixed(1)} km/h</strong>
-                        <small>Latest device value</small>
                       </div>
                     </div>
                   </section>
